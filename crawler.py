@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import json
 import requests
 
+from .utils import save
+
 def crawl(url, depth, filename):
     try:
         response = requests.get(url)
@@ -37,4 +39,6 @@ def crawl(url, depth, filename):
     }
     return result.values()
 
-print(crawl('https://roshanlamichhane.tech', 5, 'roshan'))
+info = crawl('https://roshanlamichhane.tech', 5, 'roshan')
+print(info)
+save("Data", "roshan", info)
