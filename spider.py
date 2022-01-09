@@ -2,6 +2,7 @@ from urllib.request import urlopen
 from link_finder import LinkFinder
 from domain import *
 from utils import *
+import os
 
 
 class Spider:
@@ -34,7 +35,8 @@ class Spider:
     def crawl_page(thread_name, page_url):
         if page_url not in Spider.crawled:
             print(thread_name + ' now crawling ' + page_url)
-            print('Queue ' + str(len(Spider.queue)) + ' | Crawled  ' + str(len(Spider.crawled)))
+            print('Queue ' + str(len(Spider.queue)) +
+                  ' | Crawled  ' + str(len(Spider.crawled)))
             Spider.add_links_to_queue(Spider.gather_links(page_url))
             Spider.queue.remove(page_url)
             Spider.crawled.add(page_url)
@@ -69,3 +71,33 @@ class Spider:
         set_to_file(Spider.queue, Spider.queue_file)
         set_to_file(Spider.crawled, Spider.crawled_file)
 
+    @staticmethod
+    def saveInfo(folder, filename, info):
+        try:
+            folder.mkdir(parents = True)
+            filename = "{}.txt".format(filename)
+            folder = pathlib.Path("{}".format(folder))
+            filename = "{}.txt".format(filename)
+            filepath = folder / filename
+            with filepath.open("w+") as f:
+                f.write(str(info))
+        except FileExistsError:
+            folder = pathlib.Path("{}".format(folder))
+            filename = "{}.txt".format(filename)
+            filepath = folder / filename
+            with filepath.open("w+") as f:
+                f.write(str(info))
+
+    @staticmethod
+    def downloadInfo(url):
+        r = requests.get(url)
+        soup = bs(r.text)
+        filename = get_domain_name(url)
+        urls = []
+        names = []
+        for i, link in enumerate(soup.findAll('a')):
+            href = filename + link.get('href')
+            if not href.endswith('.txt'):
+                href = href.split('.')[0] + '.txt'
+            urls.append(href)
+        names_urls = zip(names, urls)
