@@ -3,7 +3,9 @@ from link_finder import LinkFinder
 from domain import *
 from utils import *
 import os
-
+import pathlib
+import requests
+from bs4 import BeautifulSoup as bs
 
 class Spider:
 

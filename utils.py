@@ -32,11 +32,13 @@ def delete_file_contents(path):
 
 def file_to_set(file_name):
     results = set()
-    with open(file_name, 'rt') as f:
-        for line in f:
-            results.add(line.replace('\n', ''))
+    try:
+        with open(file_name, 'r') as f:
+            for line in f:
+                results.add(line.replace('\n', ''))
+    except FileNotFoundError:
+        return results
     return results
-
 
 def set_to_file(links, file_name):
     with open(file_name,"w") as f:
