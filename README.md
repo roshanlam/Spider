@@ -1,5 +1,5 @@
 # Spider
 
-<center>
-![](spider.png)
-</center>
+<p align="center">
+  <img src="spider.png" />
+</p>
