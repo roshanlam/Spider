@@ -16,7 +16,7 @@ def create_data_files(project_name, base_url):
     if not os.path.isfile(queue):
         write_file(queue, base_url)
     if not os.path.isfile(crawled):
-        write_file(crawled, '')
+        write_file(crawled,)
 
 
 # Create a new file
