@@ -1,0 +1,5 @@
+redis
+pybloom-live
+requests
+bs4
+aiohttp
