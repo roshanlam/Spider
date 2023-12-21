@@ -1,8 +1,11 @@
 import os
 import logging
+import aiohttp
+import asyncio
 
 # Configure logging
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def create_project_dir(directory: str) -> None:
@@ -33,7 +36,8 @@ def create_data_files(project_name: str, base_url: str) -> None:
         if not os.path.isfile(crawled_path):
             _write_to_file(crawled_path, '')
     except Exception as e:
-        logging.error(f"Error creating data files for project {project_name}. Error: {e}")
+        logging.error(
+            f"Error creating data files for project {project_name}. Error: {e}")
 
 
 def _write_to_file(path: str, data: str) -> None:
@@ -94,3 +98,9 @@ def set_to_file(links: set, file_path: str) -> None:
                 f.write(f"{link}\n")
     except Exception as e:
         logging.error(f"Error writing set to file {file_path}. Error: {e}")
+
+
+async def fetch_page(url):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            return await response.text()

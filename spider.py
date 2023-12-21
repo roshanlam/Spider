@@ -8,7 +8,8 @@ import aiohttp
 from link_finder import LinkFinder
 from domain import get_domain_name
 from utils import create_project_dir, create_data_files, file_to_set, set_to_file
-from lib import HTMLParser, DuplicatesPipeline
+from lib import HTMLParser, DuplicatesPipeline, SpamDetector, QueuePipeline, Freshness
+
 
 class Spider:
     def __init__(self, project_name: str, base_url: str, domain_name: str):
@@ -20,9 +21,13 @@ class Spider:
         self.queue: Deque[str] = deque()
         self.crawled: Set[str] = set()
         self.duplicates_pipeline = DuplicatesPipeline()
-        self.duplicates_pipeline.load_urls_from_data_folder()  # Load URLs from Data folder into Redis
+        # Load URLs from Data folder into Redis
+        self.duplicates_pipeline.load_urls_from_data_folder()
         self.lock = threading.Lock()
         self.boot()
+        self.freshness_checkers = {}
+        self.spam_detector = SpamDetector()
+        self.queue_pipeline = QueuePipeline()
 
     def boot(self):
         create_project_dir(self.project_name)
@@ -48,13 +53,20 @@ class Spider:
     def gather_links(self, page_url: str) -> Set[str]:
         return asyncio.run(self.gather_links_async(page_url))
 
-    def crawl_page(self, thread_name: str, page_url: str) -> None:
-        print(f"{thread_name} now crawling {page_url}")
-        print(f"Queue {len(self.queue)} | Crawled {len(self.crawled)}")
-        self.add_links_to_queue(self.gather_links(page_url))
-        with self.lock:
-            self.crawled.add(page_url)
-            self.update_files()
+    def crawl_page(self, thread_name: str, page_url: str):
+        if self.spam_detector.is_spam(page_url):
+            return
+        if page_url not in self.freshness_checkers:
+            self.freshness_checkers[page_url] = Freshness(page_url)
+        freshness_obj = self.freshness_checkers[page_url]
+        freshness_obj.check_update()
+        if freshness_obj.is_fresh():
+            print(f"{thread_name} now crawling {page_url}")
+            print(f"Queue {len(self.queue)} | Crawled {len(self.crawled)}")
+            self.add_links_to_queue(self.gather_links(page_url))
+            with self.lock:
+                self.crawled.add(page_url)
+                self.update_files()
 
     def add_links_to_queue(self, links: Set[str]) -> None:
         for url in links:

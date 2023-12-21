@@ -1,6 +1,7 @@
 import logging
 
 import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
 import requests
 import hashlib
@@ -9,6 +10,106 @@ from pybloom_live import BloomFilter
 import os
 from scipy.stats import poisson
 import numpy as np
+
+import requests
+import datetime
+import difflib
+from bs4 import BeautifulSoup
+import torch
+from transformers import BertTokenizer, BertModel
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+import re
+import time
+
+
+class RateLimiter:
+    def __init__(self, rate):
+        self.rate = rate
+        self.last_called = time.time()
+
+    async def wait(self):
+        time_since_last_call = time.time() - self.last_called
+        sleep_time = max(0, (1 / self.rate))
+        await asyncio.sleep(sleep_time - time_since_last_call)
+        self.last_called = time.time()
+
+
+def respect_robots_txt(url):
+    try:
+        robots_txt = requests.get(f'{url}/robots.txt').text
+        if 'Disallow: /' in robots_txt:
+            return False
+        return True
+    except requests.ReqeustException:
+        return True
+
+
+class ContentImportance:
+    def __init__(self):
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained('bert-base-uncased')
+        self.model.eval()
+
+    def get_embedding(self, content):
+        tokens = self.tokenizer(content, return_tensors='pt',
+                                truncation=True, padding='max_length', max_length=512)
+        with torch.no_grad():
+            outputs = self.model(**tokens)
+        return outputs['last_hidden_state'][:, 0, :].numpy()
+
+    def calculate_importance_weight(self, content):
+        sentences = [s.strip() for s in content.split('.') if s]
+        content_embedding = self.get_embedding(content)
+        sentence_embeddings = [self.get_embedding(
+            sentence) for sentence in sentences]
+        similarities = [cosine_similarity(content_embedding, sentence_embedding)[
+            0][0] for sentence_embedding in sentence_embeddings]
+        importance_weight = sum(similarities) / \
+            len(sentences) if sentences else 0
+        return importance_weight
+
+
+class Freshness:
+    def __init__(self):
+        self.content_importance = ContentImportance()
+        self.last_content = None
+        self.last_modified_date = None
+
+    def calculate_difference(self, old_content, new_content):
+        s = difflib.SequenceMatcher(None, old_content, new_content)
+        return s.ratio()
+
+    def freshness_algorithm(self, old_content, new_content, last_modified_date):
+        now = datetime.datetime.now()
+        change_ratio = self.calculate_difference(old_content, new_content)
+        days_since_modification = (
+            now - last_modified_date).days if last_modified_date else 0
+        time_decay = 1 / (1 + days_since_modification)
+        importance_weight = self.content_importance.calculate_importance_weight(
+            new_content)
+        freshness_score = time_decay * change_ratio * importance_weight * 100
+        return freshness_score
+
+    async def check_update(self, new_content):
+        freshness_score = None
+        now = datetime.datetime.now()
+
+        if self.last_content:
+            freshness_score = self.freshness_algorithm(
+                self.last_content, new_content, self.last_modified_date)
+
+        self.last_content = new_content
+        self.last_modified_date = now
+
+        return freshness_score
+
+    def predict_updates(self, time_period, average_updates):
+        average_updates = time_period * average_updates
+        rv = poisson(average_updates)
+        return rv.pmf(self.updates)
 
 
 class HTMLParser:
@@ -32,14 +133,17 @@ class HTMLParser:
         return [img.get('src') for img in imgs]
 
     def has_popups(self) -> bool:
-        pass
+        if self.soup.find_all('script', string=lambda text: 'popup' in text.lower()):
+            return True
+        return False
 
 
 class DuplicatesPipeline:
     def __init__(self):
         self.redis_client = redis.Redis(host='localhost', port=6379, db=0)
         self.crawled_urls = BloomFilter(capacity=1000000, error_rate=0.01)
-        self.crawled_content_hashes = BloomFilter(capacity=1000000, error_rate=0.01)
+        self.crawled_content_hashes = BloomFilter(
+            capacity=1000000, error_rate=0.01)
 
     def is_duplicate_url(self, url):
         if url in self.crawled_urls or self.redis_client.exists(f"url:{url}"):
@@ -88,7 +192,8 @@ class DuplicatesPipeline:
         urls_list = list(all_urls)
         for i in range(0, len(urls_list), batch_size):
             batch = urls_list[i:i + batch_size]
-            existing_urls = self.redis_client.mget([f"url:{url}" for url in batch])
+            existing_urls = self.redis_client.mget(
+                [f"url:{url}" for url in batch])
             for j, exists in enumerate(existing_urls):
                 if not exists:
                     pipeline.set(f"url:{batch[j]}", 1)
@@ -124,23 +229,45 @@ class DuplicatesPipeline:
 
 
 class QueuePipeline(DuplicatesPipeline):
-    pass
+    def add_to_queue(self, url):
+        if not self.is_duplicate_url(url):
+            self.crawled_urls.add(url)
+            self.redis_client.set(f"url:{url}", 1)
+            return True
+        return False
+
 
 # pipeline to use for any sitatuion where Naive Bayes is deemed as
 # important to use
+
+
 class NaiveBayes:
     pass
 
 # Todo: Detect if webpage is scam or not, use Naive Bayes here to train
 # model to see if webpage is scam.
+
+
 class SpamDetector:
-    def calc(self) -> int:
-        return
+    def __init__(self, dataset):
+        self.vectorizer = CountVectorizer()
+        self.classifier = MultinomialNB()
+        self.dataset = dataset
 
-    def is_spam(self) -> bool:
-        return
+    def train(self):
+        X = self.vectorizer.fit_transform(self.dataset['content'])
+        y = self.dataset['label']
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2)
+        self.classifier.fit(X_train, y_train)
+        return self.classifier.score(X_test, y_test)
 
+    def is_spam(self, content):
+        content_vector = self.vectorizer.transform([content])
+        return self.classifier.predict(content_vector)[0]
 # Todo: Implement Freshness of WebPages using Poisson Distrubution
+
+
 class Freshness:
     def __init__(self, url):
         self.url = url
@@ -152,9 +279,11 @@ class Freshness:
             async with session.get(url) as response:
                 if response.status == 200:
                     content = await response.text()
-                    return hashlib.sha256(content.encode()).hexdigest()  # Using SHA-256
+                    # Using SHA-256
+                    return hashlib.sha256(content.encode()).hexdigest()
                 else:
-                    logging.error(f"Failed to retrieve {url}, status code: {response.status}")
+                    logging.error(
+                        f"Failed to retrieve {url}, status code: {response.status}")
                     return None
 
     def check_update(self):
@@ -171,5 +300,7 @@ class Freshness:
 # Todo: Classify WebPage into categories. ex: [["url/": {
 #   "url/something/something": ["Business", "News"],
 # }]
+
+
 class Classification:
     pass

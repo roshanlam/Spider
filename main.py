@@ -4,6 +4,7 @@ from spider import Spider
 from domain import get_domain_name
 from utils import file_to_set
 
+
 class CrawlerManager:
     def __init__(self, base_url: str):
         self.NUMBER_OF_THREADS = 20
@@ -12,7 +13,8 @@ class CrawlerManager:
         self.queue_file = f"Data/{self.website_name}/queue.txt"
         self.crawled_file = f"Data/{self.website_name}/crawled.txt"
         self.queue = Queue()
-        self.spider = Spider(self.website_name, self.base_url, get_domain_name(self.base_url))
+        self.spider = Spider(self.website_name, self.base_url,
+                             get_domain_name(self.base_url))
 
     @staticmethod
     def _get_website_name(url: str) -> str:
@@ -48,6 +50,7 @@ class CrawlerManager:
         """ Process queue util it is empty"""
         while file_to_set(self.queue_file):
             self._create_jobs()
+
 
 if __name__ == "__main__":
     CrawlerManager('https://google.com').run()
