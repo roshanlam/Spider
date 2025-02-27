@@ -1,0 +1,9 @@
+aiohttp
+async-timeout
+celery
+SQLAlchemy
+psycopg2-binary
+PyYAML
+beautifulsoup4
+lxml
+redis

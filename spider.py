@@ -1,105 +1,89 @@
-from urllib.request import urlopen
+import asyncio
+import aiohttp
+import async_timeout
+import logging
+from typing import Optional
+from utils import normalize_url
 from link_finder import LinkFinder
-from domain import *
-from utils import *
-import os
-import pathlib
-import requests
-from bs4 import BeautifulSoup as bs
+from plugin import PluginManager
+from storage import save_page
 
 class Spider:
+    def __init__(self, start_url: str, config: dict, plugin_manager: Optional[PluginManager] = None) -> None:
+        """
+        Initialize the Spider.
 
-    project_name = ''
-    base_url = ''
-    domain_name = ''
-    queue_file = ''
-    crawled_file = ''
-    queue = set()
-    crawled = set()
+        :param start_url: The starting URL for crawling.
+        :param config: Configuration dictionary.
+        :param plugin_manager: Optional PluginManager for processing pages.
+        """
+        self.start_url = normalize_url(start_url)
+        self.config = config
+        self.visited = set()
+        self.to_visit: asyncio.Queue[str] = asyncio.Queue()
+        self.to_visit.put_nowait(self.start_url)
+        self.plugin_manager = plugin_manager if plugin_manager else PluginManager()
+        # Limit concurrent connections.
+        self.semaphore = asyncio.Semaphore(10)
 
-    def __init__(self, project_name, base_url, domain_name):
-        Spider.project_name = project_name
-        Spider.base_url = base_url
-        Spider.domain_name = domain_name
-        Spider.queue_file = Spider.project_name + '/queue.txt'
-        Spider.crawled_file = Spider.project_name + '/crawled.txt'
-        self.boot()
-        self.crawl_page('First spider', Spider.base_url)
+    async def fetch(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+        """
+        Fetch a URL asynchronously.
 
-    @staticmethod
-    def boot():
-        create_project_dir(Spider.project_name)
-        create_data_files(Spider.project_name, Spider.base_url)
-        Spider.queue = file_to_set(Spider.queue_file)
-        Spider.crawled = file_to_set(Spider.crawled_file)
-
-    @staticmethod
-    def crawl_page(thread_name, page_url):
-        if page_url not in Spider.crawled:
-            print(thread_name + ' now crawling ' + page_url)
-            print('Queue ' + str(len(Spider.queue)) +
-                  ' | Crawled  ' + str(len(Spider.crawled)))
-            Spider.add_links_to_queue(Spider.gather_links(page_url))
-            Spider.queue.remove(page_url)
-            Spider.crawled.add(page_url)
-            Spider.update_files()
-
-    @staticmethod
-    def gather_links(page_url):
-        html_string = ''
+        :param session: The aiohttp session.
+        :param url: The URL to fetch.
+        :return: The response text if successful; None otherwise.
+        """
         try:
-            response = urlopen(page_url)
-            if 'text/html' in response.getheader('Content-Type'):
-                html_bytes = response.read()
-                html_string = html_bytes.decode("utf-8")
-            finder = LinkFinder(Spider.base_url, page_url)
-            finder.feed(html_string)
+            async with async_timeout.timeout(self.config['timeout']):
+                headers = {'User-Agent': self.config['user_agent']}
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200 and 'text/html' in response.headers.get('Content-Type', ''):
+                        return await response.text()
+                    else:
+                        logging.warning(f"Skipping URL {url}: status {response.status} or invalid content type")
+                        return None
         except Exception as e:
-            print(str(e))
-            return set()
-        return finder.page_links()
+            logging.error(f"Exception fetching {url}: {e}")
+            return None
 
-    @staticmethod
-    def add_links_to_queue(links):
-        for url in links:
-            if (url in Spider.queue) or (url in Spider.crawled):
-                continue
-            if Spider.domain_name != get_domain_name(url):
-                continue
-            Spider.queue.add(url)
+    async def process_url(self, session: aiohttp.ClientSession, url: str) -> None:
+        """
+        Process a single URL: fetch, process via plugins, save, and extract further links.
 
-    @staticmethod
-    def update_files():
-        set_to_file(Spider.queue, Spider.queue_file)
-        set_to_file(Spider.crawled, Spider.crawled_file)
+        :param session: The aiohttp session.
+        :param url: The URL to process.
+        """
+        normalized_url = normalize_url(url)
+        if normalized_url in self.visited:
+            return
+        self.visited.add(normalized_url)
+        logging.info(f"Processing {normalized_url}")
+        async with self.semaphore:
+            content = await self.fetch(session, normalized_url)
+        if content:
+            # Process the content via plugins.
+            content = self.plugin_manager.run_plugins(normalized_url, content)
+            # Save the content in the database.
+            save_page(normalized_url, content)
+            # Extract and enqueue links.
+            finder = LinkFinder(self.start_url, normalized_url)
+            finder.feed(content)
+            for link in finder.page_links():
+                norm_link = normalize_url(link)
+                if norm_link not in self.visited:
+                    await self.to_visit.put(norm_link)
 
-    @staticmethod
-    def saveInfo(folder, filename, info):
-        try:
-            folder.mkdir(parents = True)
-            filename = "{}.txt".format(filename)
-            folder = pathlib.Path("{}".format(folder))
-            filename = "{}.txt".format(filename)
-            filepath = folder / filename
-            with filepath.open("w+") as f:
-                f.write(str(info))
-        except FileExistsError:
-            folder = pathlib.Path("{}".format(folder))
-            filename = "{}.txt".format(filename)
-            filepath = folder / filename
-            with filepath.open("w+") as f:
-                f.write(str(info))
-
-    @staticmethod
-    def downloadInfo(url):
-        r = requests.get(url)
-        soup = bs(r.text)
-        filename = get_domain_name(url)
-        urls = []
-        names = []
-        for i, link in enumerate(soup.findAll('a')):
-            href = filename + link.get('href')
-            if not href.endswith('.txt'):
-                href = href.split('.')[0] + '.txt'
-            urls.append(href)
-        names_urls = zip(names, urls)
+    async def crawl(self) -> None:
+        """
+        Begin the crawling process.
+        """
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            while not self.to_visit.empty():
+                url = await self.to_visit.get()
+                tasks.append(asyncio.create_task(self.process_url(session, url)))
+                # Respect rate limits between requests.
+                await asyncio.sleep(self.config['rate_limit'])
+            if tasks:
+                await asyncio.gather(*tasks)

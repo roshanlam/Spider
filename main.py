@@ -1,52 +1,21 @@
-import sys
-import threading
-from queue import Queue
+import asyncio
+import logging
+from config import config
 from spider import Spider
-from domain import *
-from utils import *
+from plugin import PluginManager
+from plugins.title_logger_plugin import TitleLoggerPlugin
+from utils import init_logging
 
-class Main:
-    def __init__(self, url):
-        self.NUMBER_OF_THREADS = 8
-        self.url = url
-        self.queue_file = self.get_website_name(url) + '/queue.txt'
-        self.crawled_file = self.get_website_name(url) + '/crawled.txt'
-        self.queue = Queue()
-        self.crawl(self.queue_file, self.queue)
-        self.create_jobs(self.queue_file, self.queue)
+def main() -> None:
+    """
+    Entry point for the crawler.
+    """
+    init_logging(logging.INFO)
+    plugin_manager = PluginManager()
+    # Register custom plugins here, e.g.:
+    plugin_manager.register(TitleLoggerPlugin())
+    crawler = Spider(config['start_url'], config, plugin_manager)
+    asyncio.run(crawler.crawl())
 
-    @staticmethod
-    def get_website_name(url):
-        return get_domain_name(url).split('.')[0]
-
-    def run(self):
-        Spider(self.get_website_name(self.url), self.url, get_domain_name(self.url))
-        self.crawl(self.queue_file, self.queue)
-        self.create_workers(self.NUMBER_OF_THREADS, self.work)
-
-    def create_workers(self, NUMBER_OF_THREADS, work):
-        for _ in range(NUMBER_OF_THREADS):
-            t = threading.Thread(target=work)
-            t.daemon = True
-            t.start()
-
-    def work(self, queue):
-        while True:
-            url = queue.get()
-            Spider.crawl_page(threading.current_thread().name, url)
-            queue.task_done()
-
-    def create_jobs(self, QUEUE_FILE, queue):
-        for link in file_to_set(QUEUE_FILE):
-            queue.put(link)
-        queue.join()
-        self.crawl(QUEUE_FILE, queue)
-
-    def crawl(self, QUEUE_FILE, queue):
-        queued_links = file_to_set(QUEUE_FILE)
-        if len(queued_links) > 0:
-            print(str(len(queued_links)) + ' links in the queue')
-            self.create_jobs(QUEUE_FILE, queue)
-
-
-Main('https://roshanlamichhane.tech').run()
+if __name__ == '__main__':
+    main()
