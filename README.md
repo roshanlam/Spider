@@ -4,7 +4,7 @@
   <img src="spider.png" />
 </p>
 
-A modern, scalable, and extensible web crawler designed for efficient distributed crawling and data extraction. Built using asynchronous I/O, robust logging, plugin architecture, and distributed task processing with Celery, this crawler is intended to replace legacy file-based systems with a production-grade solution.
+A modern, scalable, and extensible web crawler designed for efficient distributed crawling and data extraction. Built using asynchronous I/O, robust logging, plugin architecture, and distributed task processing with Celery.
 
 ## Features
 * Asynchronous Crawling:
