@@ -27,6 +27,7 @@ def save_page(url: str, content: str) -> None:
     session = SessionLocal()
     try:
         stmt = insert(pages_table).values(url=url, content=content)
+        stmt = stmt.on_conflict_do_nothing(index_elements=['url'])
         session.execute(stmt)
         session.commit()
         logging.info(f"Saved page: {url}")
