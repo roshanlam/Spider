@@ -2,7 +2,7 @@ threads: 8
 rate_limit: 1 # seconds between requests
 user_agent: "MyCrawler/1.0"
 timeout: 10
-start_url: "https://google.com"
+start_url: "https://en.wikipedia.org/wiki/Pigeonhole_principle"
 
 database:
   # postgresql://username:password@localhost/dbname

@@ -3,7 +3,7 @@ import logging
 from config import config
 from spider import Spider
 from plugin import PluginManager
-from plugins.title_logger_plugin import TitleLoggerPlugin
+from plugins.entity_extraction import EntityExtractionPlugin
 from utils import init_logging
 
 def main() -> None:
@@ -13,7 +13,7 @@ def main() -> None:
     init_logging(logging.INFO)
     plugin_manager = PluginManager()
     # Register custom plugins here, e.g.:
-    plugin_manager.register(TitleLoggerPlugin())
+    plugin_manager.register(EntityExtractionPlugin())
     crawler = Spider(config['start_url'], config, plugin_manager)
     asyncio.run(crawler.crawl())
 
