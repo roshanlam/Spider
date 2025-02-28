@@ -1,6 +1,6 @@
 from celery import Celery, Task
-from config import config
-from spider import Spider
+from spider.config import config
+from spider.spider import Spider
 import asyncio
 import logging
 

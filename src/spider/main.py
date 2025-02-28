@@ -1,10 +1,10 @@
 import asyncio
 import logging
-from config import config
-from spider import Spider
-from plugin import PluginManager
-from plugins.entity_extraction import EntityExtractionPlugin
-from utils import init_logging
+from spider.config import config
+from spider.spider import Spider
+from spider.plugin import PluginManager
+from spider.plugins.entity_extraction import EntityExtractionPlugin
+from spider.utils import init_logging
 
 def main() -> None:
     """

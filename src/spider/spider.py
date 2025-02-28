@@ -3,10 +3,10 @@ import aiohttp
 import async_timeout
 import logging
 from typing import Optional
-from utils import normalize_url
-from link_finder import LinkFinder
-from plugin import PluginManager
-from storage import save_page
+from spider.utils import normalize_url
+from spider.link_finder import LinkFinder
+from spider.plugin import PluginManager
+from spider.storage import save_page
 
 class Spider:
     def __init__(self, start_url: str, config: dict, plugin_manager: Optional[PluginManager] = None) -> None:
@@ -63,9 +63,9 @@ class Spider:
             content = await self.fetch(session, normalized_url)
         if content:
             # Process the content via plugins.
-            content = self.plugin_manager.run_plugins(normalized_url, content)
+            processed_content = self.plugin_manager.run_plugins(normalized_url, content)
             # Save the content in the database.
-            save_page(normalized_url, content)
+            save_page(normalized_url, processed_content)
             # Extract and enqueue links.
             finder = LinkFinder(self.start_url, normalized_url)
             finder.feed(content)

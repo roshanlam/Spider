@@ -3,8 +3,8 @@ import spacy
 from sqlalchemy import create_engine, Column, String, JSON, MetaData, Table
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
-from config import config
-from plugin import Plugin
+from spider.config import config
+from spider.plugin import Plugin
 
 # Set up the database engine and metadata.
 engine = create_engine(config['database']['url'], echo=False)

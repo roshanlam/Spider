@@ -9,7 +9,9 @@ def load_config(config_path: str = 'config.yaml') -> Dict[str, Any]:
     :param config_path: Path to the YAML configuration file.
     :return: Configuration dictionary.
     """
-    with open(config_path, 'r') as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    full_path = os.path.join(base_dir, config_path)
+    with open(full_path, 'r') as f:
         config = yaml.safe_load(f)
     # Environment variable overrides.
     config['threads'] = int(os.getenv("CRAWLER_THREADS", config.get('threads', 8)))

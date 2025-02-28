@@ -1,6 +1,6 @@
 import logging
 from bs4 import BeautifulSoup
-from plugin import Plugin
+from spider.plugin import Plugin
 
 class TitleLoggerPlugin(Plugin):
     """
