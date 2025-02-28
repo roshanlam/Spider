@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "spider"
+version = "0.1.0"
+description = ""
+authors = ["roshanlam <lamichhaner40@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11, <3.13"
+aiohttp = "^3.11.13"
+async-timeout = "^5.0.1"
+celery = "^5.4.0"
+sqlalchemy = "^2.0.38"
+psycopg2-binary = "^2.9.10"
+pyyaml = "^6.0.2"
+beautifulsoup4 = "^4.13.3"
+lxml = "^5.3.1"
+redis = "^5.2.1"
+spacy = "^3.8.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
