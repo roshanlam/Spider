@@ -3,10 +3,10 @@ import aiohttp
 import async_timeout
 import logging
 from typing import Optional
-from spider.utils import normalize_url
-from spider.link_finder import LinkFinder
-from spider.plugin import PluginManager
-from spider.storage import save_page
+from utils import normalize_url
+from link_finder import LinkFinder
+from plugin import PluginManager
+from storage import save_page
 
 class Spider:
     def __init__(self, start_url: str, config: dict, plugin_manager: Optional[PluginManager] = None) -> None:

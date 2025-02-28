@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from spider.config import config
-from spider.spider import Spider
-from spider.plugin import PluginManager
-from spider.plugins.entity_extraction import EntityExtractionPlugin
-from spider.utils import init_logging
+from config import config
+from spider import Spider
+from plugin import PluginManager
+from plugins.entity_extraction import EntityExtractionPlugin
+from plugins.real_time_metrics import RealTimeMetricsPlugin
+from utils import init_logging
 
 def main() -> None:
     """
@@ -14,6 +15,7 @@ def main() -> None:
     plugin_manager = PluginManager()
     # Register custom plugins here, e.g.:
     plugin_manager.register(EntityExtractionPlugin())
+    plugin_manager.register(RealTimeMetricsPlugin())
     crawler = Spider(config['start_url'], config, plugin_manager)
     asyncio.run(crawler.crawl())
 

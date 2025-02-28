@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, Column, String, Text, MetaData, Table, ins
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from spider.config import config
+from config import config
 
 # Configure the engine and sessionmaker.
 engine = create_engine(config['database']['url'], echo=False)

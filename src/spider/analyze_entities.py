@@ -2,7 +2,7 @@ import json
 from collections import Counter
 from sqlalchemy import create_engine, select, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from spider.config import config
+from config import config
 
 engine = create_engine(config['database']['url'], echo=False)
 SessionLocal = sessionmaker(bind=engine)
