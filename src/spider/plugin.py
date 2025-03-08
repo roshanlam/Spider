@@ -1,44 +1,40 @@
+import asyncio
 import logging
-from typing import Any
 
 class Plugin:
-    def process(self, url: str, content: Any) -> Any:
+    async def should_run(self, url: str, content: str) -> bool:
         """
-        Process the crawled page content.
+        Determine if the plugin should run for the given URL and content.
+        Defaults to True; override to add conditional logic.
+        """
+        return True
 
-        :param url: URL of the page.
-        :param content: Content to process.
-        :return: Processed content.
+    async def process(self, url: str, content: str) -> str:
         """
-        return content
+        Process the content asynchronously and return the (optionally modified) content.
+        Must be implemented by subclasses.
+        """
+        raise NotImplementedError("Plugins must implement the async process method.")
 
 class PluginManager:
-    def __init__(self) -> None:
-        """
-        Initialize the PluginManager.
-        """
-        self.plugins: list[Plugin] = []
+    def __init__(self):
+        self.plugins = []
 
     def register(self, plugin: Plugin) -> None:
         """
-        Register a plugin for processing crawled pages.
-
-        :param plugin: An instance of a Plugin.
+        Registers a plugin to be used by the crawler.
         """
         self.plugins.append(plugin)
-        logging.info(f"Registered plugin: {plugin.__class__.__name__}")
 
-    def run_plugins(self, url: str, content: Any) -> Any:
+    async def run_plugins(self, url: str, content: str) -> str:
         """
-        Run all registered plugins on the given content.
-
-        :param url: The URL associated with the content.
-        :param content: The content to process.
-        :return: Processed content after all plugins have been applied.
+        Iterates through all registered plugins and runs those whose should_run() method returns True.
+        The plugins are executed asynchronously, and their output (if any) is passed along.
         """
         for plugin in self.plugins:
             try:
-                content = plugin.process(url, content)
+                if await plugin.should_run(url, content):
+                    content = await plugin.process(url, content)
             except Exception as e:
-                logging.error(f"Error in plugin {plugin.__class__.__name__} for {url}: {e}")
+                logging.error(f"Error in plugin {plugin.__class__.__name__}: {e}")
         return content
