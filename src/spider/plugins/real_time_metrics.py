@@ -1,9 +1,12 @@
 import asyncio
 import threading
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import uvicorn
-from plugin import Plugin
+from starlette.websockets import WebSocketState
+from spider.plugin import Plugin
 
+# Global metrics store and a set of connected WebSocket clients.
 metrics_data = {
     "queueSize": 0,
     "crawled": 0,
@@ -11,7 +14,6 @@ metrics_data = {
     "performance": 0,
     "timestamp": 0,
 }
-
 connected_clients = set()
 
 app = FastAPI()
@@ -28,30 +30,26 @@ async def websocket_endpoint(websocket: WebSocket):
     connected_clients.add(websocket)
     try:
         while True:
-            # Keep the connection alive.
             await asyncio.sleep(0.1)
     except WebSocketDisconnect:
-        connected_clients.remove(websocket)
+        connected_clients.discard(websocket)
 
 async def broadcast_metrics(new_metrics: dict):
     """
     Update the global metrics_data and send the new metrics as JSON to all connected clients.
-    If a client is closed, remove it from the list.
+    Checks if a client is still connected before sending.
     """
     metrics_data.update(new_metrics)
     for client in list(connected_clients):
+        if client.client_state != WebSocketState.CONNECTED:
+            connected_clients.discard(client)
+            continue
         try:
             await client.send_json(new_metrics)
-        except RuntimeError:
-            # The client is closed; remove it.
-            connected_clients.remove(client)
+        except Exception:
+            connected_clients.discard(client)
 
 class RealTimeMetricsPlugin(Plugin):
-    """
-    A real-time WebSocket plugin that starts a FastAPI server with:
-      - A REST API endpoint (/api/metrics) for retrieving metrics.
-      - A WebSocket endpoint (/ws/metrics) for live updates.
-    """
     def __init__(self, host: str = "0.0.0.0", port: int = 3001):
         self.host = host
         self.port = port
@@ -62,12 +60,14 @@ class RealTimeMetricsPlugin(Plugin):
     def run_server(self):
         uvicorn.run(app, host=self.host, port=self.port, log_level="info")
 
-    def process(self, url: str, content: str) -> str:
+    async def should_run(self, url: str, content: str) -> bool:
+        return True
+
+    async def process(self, url: str, content: str) -> str:
         """
-        For each processed URL, simulate a metrics update (replace with real metrics)
-        and broadcast the metrics via WebSocket.
+        Simulates a metrics update based on the URL's length and broadcasts the updated metrics
+        via WebSocket. Returns the content unmodified.
         """
-        import time
         new_metrics = {
             "queueSize": len(url) % 50,
             "crawled": (len(url) + 10) % 100,
@@ -75,7 +75,7 @@ class RealTimeMetricsPlugin(Plugin):
             "performance": 100 - (len(url) % 20),
             "timestamp": int(time.time() * 1000)
         }
-        # Schedule the asynchronous broadcast.
+        # Schedule asynchronous broadcast without blocking.
         asyncio.create_task(self.async_broadcast(new_metrics))
         return content
 

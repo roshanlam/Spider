@@ -1,25 +1,16 @@
 import logging
 from bs4 import BeautifulSoup
-from plugin import Plugin
+from spider.plugin import Plugin
 
 class TitleLoggerPlugin(Plugin):
-    """
-    A custom plugin that extracts the title from a crawled page and logs it.
+    async def should_run(self, url: str, content: str) -> bool:
+        return True
 
-    How It Works:
-      1. Receives the URL and HTML content of a crawled page.
-      2. Uses BeautifulSoup with the lxml parser to extract the <title> tag.
-      3. Logs the title if found; otherwise, logs that no title was found.
-      4. Returns the unmodified HTML content.
-    """
-
-    def process(self, url: str, content: str) -> str:
+    async def process(self, url: str, content: str) -> str:
         """
-        Process the crawled page content by extracting and logging the title.
-
-        :param url: The URL of the crawled page.
-        :param content: The HTML content of the page.
-        :return: The original, unmodified content.
+        Extracts the <title> tag from the HTML content using BeautifulSoup (with lxml)
+        and logs the title if found. Otherwise, logs that no title was found.
+        Returns the unmodified content.
         """
         try:
             soup = BeautifulSoup(content, 'lxml')
