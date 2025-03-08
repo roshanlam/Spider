@@ -6,8 +6,11 @@ They can extract metadata, filter or transform content, or integrate with extern
 ## Plugin Architecture Overview
 The crawler uses a simple plugin system based on two classes:
 
-**Plugin**: The base class for all plugins. It defines the interface (a single process method) that plugins must implement.
-**PluginManager**: This class manages and executes registered plugins sequentially on the crawled content.
+- **Plugin**: The base class for all plugins. It defines two asynchronous methods:
+  - `async should_run(url: str, content: str) -> bool`: Determines if the plugin should process the given URL and content. By default, it returns `True`, but you can override it to add custom conditions.
+  - `async process(url: str, content: str) -> str`: Processes the content asynchronously and returns the (optionally modified) content. This method must be implemented by your plugin.
+
+- **PluginManager**: This class manages and executes registered plugins sequentially. It awaits each plugin’s `should_run` and `process` methods so that plugins run in an asynchronous, non-blocking manner.
 
 ## How to Create a Custom Plugin
 1. Create a New Module
@@ -18,12 +21,15 @@ Import the Plugin class from the plugin module:
 from plugin import Plugin
 ```
 3. Subclass the Plugin Class
-Create a new class that inherits from Plugin. Implement the process method:
+Create a new class that inherits from Plugin and implements the async methods:
 ```python
 class MyCustomPlugin(Plugin):
-    def process(self, url: str, content: str) -> str:
-        # Your custom processing logic here.
-        return content
+    async def should_run(self, url: str, content: str) -> bool:
+        # Only run if content is non-empty.
+        return bool(content and content.strip())
+
+    async def process(self, url: str, content: str) -> str:
+        return content + "\n<!-- Processed by MyCustomPlugin -->"
 ```
 
 4. Implement the Process Method
@@ -41,10 +47,13 @@ The following example extracts and logs the page title:
 ```python
 import logging
 from bs4 import BeautifulSoup
-from plugin import Plugin
+from spider.plugin import Plugin
 
 class TitleLoggerPlugin(Plugin):
-    def process(self, url: str, content: str) -> str:
+    async def should_run(self, url: str, content: str) -> bool:
+        return bool(content and content.strip())
+
+    async def process(self, url: str, content: str) -> str:
         try:
             soup = BeautifulSoup(content, 'lxml')
             title_tag = soup.find('title')
