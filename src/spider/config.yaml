@@ -6,7 +6,7 @@ start_url: "https://en.wikipedia.org/wiki/Rabin_fingerprint"
 
 database:
   # postgresql://username:password@localhost/dbname
-  url: "postgresql://roshan:RoshanLocalDB@localhost/smartcrawler"
+  url: "postgresql://postgres:postgres@localhost/postgres-spider"
 
 celery:
   broker_url: "redis://localhost:6379/0"
