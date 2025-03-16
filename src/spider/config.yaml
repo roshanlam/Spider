@@ -2,11 +2,11 @@ threads: 8
 rate_limit: 1 # seconds between requests
 user_agent: "MyCrawler/1.0"
 timeout: 10
-start_url: "https://en.wikipedia.org/wiki/Rabin_fingerprint"
+start_url: "https://jananpatel.online"  
 
 database:
   # postgresql://username:password@localhost/dbname
-  url: "postgresql://postgres:postgres@localhost/postgres-spider"
+  url: "postgresql://postgres:postgres@localhost/crawlerdb"
 
 celery:
   broker_url: "redis://localhost:6379/0"
