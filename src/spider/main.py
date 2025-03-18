@@ -7,6 +7,7 @@ from spider.plugins.entity_extraction import EntityExtractionPlugin
 from spider.plugins.real_time_metrics import RealTimeMetricsPlugin
 from spider.plugins.dynamic_scraper import DynamicScraperPlugin
 from spider.utils import init_logging
+from spider.plugins.title_logger_plugin import TitleLoggerPlugin
 
 def main() -> None:
     """
@@ -18,6 +19,7 @@ def main() -> None:
     plugin_manager.register(EntityExtractionPlugin())
     plugin_manager.register(RealTimeMetricsPlugin())
     plugin_manager.register(DynamicScraperPlugin())
+    plugin_manager.register(TitleLoggerPlugin())
     crawler = Spider(config['start_url'], config, plugin_manager)
     asyncio.run(crawler.crawl())
 
