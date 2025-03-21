@@ -1,8 +1,10 @@
 from celery import Celery, Task
-from config import config
-from spider import Spider
+from spider.config import config
+from spider.spider import Spider
 import asyncio
 import logging
+from spider.plugin import PluginManager
+from spider.plugins.entity_extraction import EntityExtractionPlugin
 
 celery_app = Celery(
     'crawler',
@@ -25,8 +27,13 @@ def crawl_task(self, url: str) -> str:
     :return: A confirmation message.
     """
     try:
-        crawler = Spider(url, config)
+        plugin_manager = PluginManager()
+        entity_plugin = EntityExtractionPlugin()
+        plugin_manager.register(entity_plugin)
+        
+        crawler = Spider(url, config, plugin_manager)
         asyncio.run(crawler.crawl())
+        
         logging.info(f"Successfully crawled {url}")
         return f"Crawled {url}"
     except Exception as e:
