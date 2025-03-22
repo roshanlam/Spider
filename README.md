@@ -112,7 +112,7 @@ This will initialize the crawler, load the configured start URL, and begin async
 celery -A spider.tasks.celery_app worker --loglevel=info
 ```
 2. Dispatch a Crawl Task:
-Run the run_crawler.py file. Make sure to change the URL in the file to queue that URL to the celery instance
+In a seperate terminal, from the root of thr project, run the run_crawler.py file. Make sure to change the URL in the file to queue that URL to the celery instance
 
 ```bash
 python run_crawler.py
