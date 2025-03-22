@@ -112,13 +112,7 @@ This will initialize the crawler, load the configured start URL, and begin async
 celery -A spider.tasks.celery_app worker --loglevel=info
 ```
 2. Dispatch a Crawl Task:
-You can use a Python shell or run the run_crawler.py file:
-```python
-from tasks import crawl_task
-crawl_task.delay("https://google.com")
-```
-
-or
+You can use a Python shell or run the run_crawler.
 
 ```bash
 python run_crawler.py
