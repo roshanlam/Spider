@@ -101,7 +101,7 @@ celery:
 ### Running Locally
 To start the crawler locally:
 ```bash
-python main.py
+python -m spider.main
 ```
 This will initialize the crawler, load the configured start URL, and begin asynchronous crawling.
 
@@ -109,14 +109,15 @@ This will initialize the crawler, load the configured start URL, and begin async
 
 1. Start the Celery Worker:
 ```
-celery -A tasks.celery_app worker --loglevel=info
+celery -A spider.tasks.celery_app worker --loglevel=info
 ```
 2. Dispatch a Crawl Task:
-You can use a Python shell or another mechanism to queue a URL for crawling:
-```python
-from tasks import crawl_task
-crawl_task.delay("https://google.com")
+In a seperate terminal, from the root of the project, run the run_crawler.py file. Make sure to change the URL in the file to queue that URL to the celery instance
+
+```bash
+python run_crawler.py
 ```
+
 This will distribute the crawl task across available Celery workers.
 
 ## Plugin System
